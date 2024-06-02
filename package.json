@@ -1,0 +1,12 @@
+{
+  "name": "powercards-server",
+  "module": "main.tsx",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "type": "module",
+  "dependencies": { "lion-parser": "^1.1.1" }
+}
