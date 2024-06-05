@@ -166,6 +166,10 @@ export async function updateUserDetailsRoute(request: Request) {
         map.set("name", body.name);
     }
 
+    if (body.sets) {
+        map.set("sets", body.sets);
+    }
+
     await Bun.write(
         `./data/users/${user.username}.json`,
         JSON.stringify(Object.fromEntries(map.entries()))

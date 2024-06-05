@@ -40,7 +40,7 @@ export async function signUpRoute(request: Request) {
         );
     }
 
-    const session = crypto.randomUUID();
+    const session = generateSessionId();
 
     const userdata = {
         name: body.username,
@@ -122,7 +122,7 @@ export async function loginRoute(request: Request) {
         );
     }
 
-    const session = crypto.randomUUID();
+    const session = generateSessionId();
     userdata.sessions.push(
         session + "@" + (Date.now() + 1000 * 60 * 60 * 24 * 21).toString()
     );
@@ -209,7 +209,7 @@ export async function changePasswordRoute(request: Request) {
 
     map.set("password", Bun.password.hashSync(body.password));
 
-    const session = crypto.randomUUID();
+    const session = generateSessionId();
 
     map.set("sessions", [
         session + "@" + (Date.now() + 1000 * 60 * 60 * 24 * 21).toString(),
@@ -258,4 +258,10 @@ export async function getUserAuthentication(
     }
 
     return null;
+}
+
+export function generateSessionId(): string {
+    const id = crypto.randomUUID() + crypto.randomUUID();
+
+    return parseInt(id.replaceAll("-", ""), 16).toString(36);
 }

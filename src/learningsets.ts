@@ -1,8 +1,8 @@
-import { readdirSync } from "node:fs";
 import { getUserAuthentication } from "./authorization";
-import type { Collection } from "./types";
+import { readdirSync } from "node:fs";
+import type { Collection, LearningSet } from "./types";
 
-export async function getCollectionRoute(request: Request) {
+export async function getLearningSetRoute(request: Request) {
     let body;
 
     try {
@@ -32,7 +32,7 @@ export async function getCollectionRoute(request: Request) {
     if (!body.id) {
         return new Response(
             JSON.stringify({
-                error: { message: "Collection ID is required." },
+                error: { message: "Learning set ID is required." },
             }),
             {
                 status: 400,
@@ -53,13 +53,10 @@ export async function getCollectionRoute(request: Request) {
         );
     }
 
-    const collections = readdirSync(`./data/collections`);
-    const collection = collections.find((e) => e === `${body.id}.json`);
-
-    if (!collection) {
+    if (!(await Bun.file(`./data/sets/${body.id}.json`).exists())) {
         return new Response(
             JSON.stringify({
-                error: { message: "Collection not found." },
+                error: { message: "Not found." },
             }),
             {
                 status: 404,
@@ -67,9 +64,9 @@ export async function getCollectionRoute(request: Request) {
         );
     }
 
-    const data = await Bun.file(`./data/collections/${body.id}.json`).json();
+    const learningSet = await Bun.file(`./data/sets/${body.id}.json`).json();
 
-    if (!data.public && data.author !== user.username) {
+    if (!learningSet.public && learningSet.author !== user.username) {
         return new Response(
             JSON.stringify({
                 error: { message: "Forbidden." },
@@ -80,10 +77,10 @@ export async function getCollectionRoute(request: Request) {
         );
     }
 
-    return new Response(JSON.stringify({ data }));
+    return new Response(JSON.stringify({ data: learningSet }));
 }
 
-export async function getManyCollectionsRoute(request: Request) {
+export async function getManyLearningSetsRoute(request: Request) {
     let body;
 
     try {
@@ -95,17 +92,6 @@ export async function getManyCollectionsRoute(request: Request) {
             }),
             {
                 status: 400,
-            }
-        );
-    }
-
-    if (!body.sessionId) {
-        return new Response(
-            JSON.stringify({
-                error: { message: "Unauthorized." },
-            }),
-            {
-                status: 401,
             }
         );
     }
@@ -113,10 +99,21 @@ export async function getManyCollectionsRoute(request: Request) {
     if (!body.ids || !Array.isArray(body.ids)) {
         return new Response(
             JSON.stringify({
-                error: { message: "Collection IDs are required." },
+                error: { message: "Learning set IDs are required." },
             }),
             {
                 status: 400,
+            }
+        );
+    }
+
+    if (!body.sessionId) {
+        return new Response(
+            JSON.stringify({
+                error: { message: "Unauthorized." },
+            }),
+            {
+                status: 401,
             }
         );
     }
@@ -134,29 +131,27 @@ export async function getManyCollectionsRoute(request: Request) {
         );
     }
 
-    const collections = readdirSync(`./data/collections`);
+    const learningSets = readdirSync(`./data/sets`);
 
-    const data: Map<String, Collection> = new Map();
+    const data: Map<String, LearningSet> = new Map();
     const errors: string[] = [];
 
     for (const id of body.ids) {
-        const collection = collections.find((e) => e === `${id}.json`);
+        const set = learningSets.find((set) => set === `${id}.json`);
 
-        if (!collection) {
+        if (!set) {
             errors.push(`${id} not found.`);
             continue;
         }
 
-        const collectionData: Collection = await Bun.file(
-            `./data/collections/${id}.json`
-        ).json();
+        const learningSet = await Bun.file(`./data/sets/${set}`).json();
 
-        if (!collectionData.public && collectionData.author !== user.username) {
+        if (!learningSet.public && learningSet.author !== user.username) {
             errors.push(`${id} forbidden.`);
             continue;
         }
 
-        data.set(id, collectionData);
+        data.set(id, learningSet);
     }
 
     return new Response(
@@ -164,7 +159,7 @@ export async function getManyCollectionsRoute(request: Request) {
     );
 }
 
-export async function updateCollectionRoute(request: Request) {
+export async function updateLearningSetRoute(request: Request) {
     let body;
 
     try {
@@ -204,16 +199,14 @@ export async function updateCollectionRoute(request: Request) {
         );
     }
 
-    let collection: Collection;
+    let set: LearningSet;
 
     const id = body.id || crypto.randomUUID();
 
-    if (await Bun.file(`./data/collections/${id}.json`).exists()) {
-        const currentCollection = await Bun.file(
-            `./data/collections/${id}.json`
-        ).json();
+    if (await Bun.file(`./data/sets/${id}.json`).exists()) {
+        const currentSet = await Bun.file(`./data/sets/${id}.json`).json();
 
-        if (currentCollection.author !== user.username) {
+        if (currentSet.author !== user.username) {
             return new Response(
                 JSON.stringify({
                     error: { message: "Forbidden." },
@@ -224,27 +217,25 @@ export async function updateCollectionRoute(request: Request) {
             );
         }
 
-        collection = {
-            name: body.name || currentCollection.name || "",
-            cards: body.cards || currentCollection.cards || [],
+        set = {
+            name: body.name || currentSet.name || "",
+            collections: body.collections || currentSet.cards || [],
             author: user.username,
-            version: body.version || currentCollection.version || 1,
-            description:
-                body.description || currentCollection.description || "",
-            public: body.public || currentCollection.public || false,
-            sets: body.sets || currentCollection.sets || [],
+            version: body.version || currentSet.version || 1,
+            description: body.description || currentSet.description || "",
+            public: body.public || currentSet.public || false,
         };
     } else {
         if (
             !body.name ||
-            !body.cards ||
-            !Array.isArray(body.cards) ||
-            !(body.cards as String[][]).every((e: String[]) => Array.isArray(e))
+            !body.collections ||
+            !Array.isArray(body.collections)
         ) {
             return new Response(
                 JSON.stringify({
                     error: {
-                        message: "Collection name and cards are required.",
+                        message:
+                            "Learning set name and collections are required.",
                     },
                 }),
                 {
@@ -253,18 +244,29 @@ export async function updateCollectionRoute(request: Request) {
             );
         }
 
-        collection = {
+        set = {
             name: body.name,
-            cards: body.cards,
+            collections: body.collections,
             author: user.username,
             version: body.version || 1,
             description: body.description || "",
             public: body.public || false,
-            sets: body.sets || [],
         };
     }
 
-    return new Response(JSON.stringify({ data: { ...collection, id } }), {
+    await Bun.write(`./data/sets/${id}.json`, JSON.stringify(set));
+
+    if (!body.id) {
+        await Bun.write(
+            `./data/users/${user.username}.json`,
+            JSON.stringify({
+                ...user,
+                sets: [...user.sets, id],
+            })
+        );
+    }
+
+    return new Response(JSON.stringify({ data: { ...set, id } }), {
         status: 201,
     });
 }
