@@ -68,6 +68,101 @@ export async function signUpRoute(request: Request) {
     );
 }
 
+export async function getUsernameAvailabilityRoute(request: Request) {
+    let body;
+
+    try {
+        body = await request.json();
+    } catch (e) {
+        return new Response(
+            JSON.stringify({
+                error: { message: "Invalid JSON." },
+            }),
+            {
+                status: 400,
+            }
+        );
+    }
+
+    if (!body.username) {
+        return new Response(
+            JSON.stringify({
+                error: { body: "Username is required." },
+            }),
+            {
+                status: 400,
+            }
+        );
+    }
+
+    const users = readdirSync("./data/users");
+    if (users.map((e) => e.slice(0, -5)).includes(body.username)) {
+        return new Response(
+            JSON.stringify({
+                data: { available: false },
+            }),
+            { status: 200 }
+        );
+    }
+
+    return new Response(
+        JSON.stringify({
+            data: { available: true },
+        }),
+        { status: 200 }
+    );
+}
+
+export async function getEmailAvailabilityRoute(request: Request) {
+    let body;
+
+    try {
+        body = await request.json();
+    } catch (e) {
+        return new Response(
+            JSON.stringify({
+                error: { message: "Invalid JSON." },
+            }),
+            {
+                status: 400,
+            }
+        );
+    }
+
+    if (!body.email) {
+        return new Response(
+            JSON.stringify({
+                error: { body: "Email is required." },
+            }),
+            {
+                status: 400,
+            }
+        );
+    }
+
+    const users = readdirSync("./data/users");
+    for (const file of users) {
+        const user = (await Bun.file(
+            `./data/users/${file}`
+        ).json()) as UserFull;
+        if (user.email === body.email) {
+            return new Response(
+                JSON.stringify({
+                    data: { available: false },
+                }),
+                { status: 200 }
+            );
+        }
+    }
+
+    return new Response(
+        JSON.stringify({
+            data: { available: true },
+        }),
+        { status: 200 }
+    );
+}
+
 export async function loginRoute(request: Request) {
     let body;
 

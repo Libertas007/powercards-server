@@ -1,5 +1,7 @@
 import {
     changePasswordRoute,
+    getEmailAvailabilityRoute,
+    getUsernameAvailabilityRoute,
     loginRoute,
     signUpRoute,
 } from "./src/authorization";
@@ -29,6 +31,15 @@ const server = Bun.serve({
         }
         if (request.method === "POST" && pathname === "/auth/change-password") {
             return changePasswordRoute(request);
+        }
+        if (request.method === "POST" && pathname === "/auth/email-available") {
+            return getEmailAvailabilityRoute(request);
+        }
+        if (
+            request.method === "POST" &&
+            pathname === "/auth/username-available"
+        ) {
+            return getUsernameAvailabilityRoute(request);
         }
         if (request.method === "POST" && pathname === "/user/get") {
             return getUserDetailsRoute(request);
